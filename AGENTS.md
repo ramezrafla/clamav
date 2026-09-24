@@ -57,16 +57,24 @@ file paths, and `freshclam` for signature updates.
 The direct comparison and full methodology are recorded in
 `docs/optimization-results.md`. Its baseline is the original scanner at upstream
 commit `72cd48c9faed4fa4afc22bc4ed0b9b19f8d3f8f7`, with the same native compiler
-settings. The database has 7,497,205 signatures; the corpus consists of 60 decoded
-repository HDB fixtures. It is not a representative production upload sample.
+settings. The earlier one- and four-worker runs used 7,497,205 signatures; the
+twelve-worker follow-up uses 7,497,219 after database updates. Each paired
+comparison uses one unchanged database. The corpus consists of the same 60
+decoded repository HDB fixtures. It is not a representative production upload sample.
 
 | Workload | Original time | Modified time | Time reduction | Original peak RSS | Modified peak RSS |
 | --- | ---: | ---: | ---: | ---: | ---: |
 | 1 worker, 60 scans | 30.483 s | 13.238 s | 56.6% | 1,627.9 MiB | 1,584.5 MiB |
 | 4 workers, 120 scans | 30.622 s | 13.771 s | 55.0% | 2,123.5 MiB | 1,684.8 MiB |
+| 12 workers, 120 scans | 29.954 s | 11.988 s | 60.0% | 3,223.3 MiB | 1,924.3 MiB |
 
-All 720 timed scan statuses and exact detection names match. Library, database
-and corpus hashes remained unchanged.
+All 1,200 timed scan statuses and exact detection names match within their
+paired comparisons, including 480 scans in the twelve-worker follow-up. Library,
+database and corpus hashes remained unchanged during each comparison.
+
+The twelve-worker follow-up experienced host swap activity. Combined with the
+database update, this means comparison with the older worker counts is not a
+controlled scaling test; see the report for memory-pressure measurements.
 
 Timings use a persistent engine with the clean cache disabled. Database loading
 and corpus warmup are excluded from scan time; peak RSS includes the whole
