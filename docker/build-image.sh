@@ -2,18 +2,30 @@
 set -Eeuo pipefail
 here=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 source_root=$(cd -- "$here/.." && pwd)
-image=${IMAGE:-antivirus:optimized}
 binary_image=${BINARY_IMAGE:-antivirus:optimized-binaries}
 mode=${BUILD_MODE:-fast}
+version=${VERSION:-3.00}
 
 if [[ "$mode" != fast && "$mode" != source ]]; then
     echo 'BUILD_MODE must be fast or source.' >&2
     exit 1
 fi
-if [[ "$image" == "$binary_image" ]]; then
-    echo 'IMAGE and BINARY_IMAGE must differ so the reusable binary image is preserved.' >&2
-    exit 1
+if [[ "$mode" == fast ]]; then
+    images=(antivirus:latest "antivirus:$version")
+    if [[ -n "${IMAGE:-}" && "$IMAGE" != "${images[0]}" && "$IMAGE" != "${images[1]}" ]]; then
+        images+=("$IMAGE")
+    fi
+else
+    images=("${IMAGE:-antivirus:optimized}")
 fi
+tag_args=()
+for image in "${images[@]}"; do
+    if [[ "$image" == "$binary_image" ]]; then
+        echo 'Output tags and BINARY_IMAGE must differ so the reusable binary image is preserved.' >&2
+        exit 1
+    fi
+    tag_args+=(-t "$image")
+done
 # The workspace copies are authoritative; never overwrite local edits by
 # silently importing configuration from the old deployment folder.
 if [[ ! -s "$here/config/clamd.conf" || ! -s "$here/config/freshclam.conf" ]]; then
@@ -40,11 +52,20 @@ elif ! docker image inspect "$binary_image" >/dev/null 2>&1; then
 fi
 # Keep the original binary provenance labels. A config-only repack must not
 # claim its binaries were compiled from the current checkout.
-docker build --progress=plain -f "$here/Dockerfile.fast" -t "$image" \
+docker build --progress=plain -f "$here/Dockerfile.fast" "${tag_args[@]}" \
     --build-arg "BINARY_IMAGE=$binary_image" \
     --build-arg "PACKAGING_REVISION=$revision" "$@" "$source_root"
-echo "Packaged $image using existing binaries from $binary_image"
-if [[ -n "${SAVE_IMAGE:-}" ]]; then
-    docker image save "$image" | gzip > "$SAVE_IMAGE"
-    echo "Saved $SAVE_IMAGE"
+echo "Packaged ${images[*]} using existing binaries from $binary_image"
+
+if [ -z "${NOSAVE:-}" ]; then
+  echo "-- Saving Docker image --"
+  docker image save "${images[@]}" | gzip -9 > antivirus.tgz
 fi
+
+
+if [ -z "${NOPUSH:-}" ]; then
+  echo "-- Pushing to S3 --"
+  aws s3 cp antivirus.tgz s3://caoneofficecdn/repo/antivirus.tgz
+fi
+
+echo "-- done --"

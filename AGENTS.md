@@ -152,10 +152,14 @@ bytecode. Do not copy host Ubuntu binaries into the Debian runtime.
 ./docker/smoke-test.sh "$PWD/db"
 ```
 
-Default tag: `antivirus:optimized`. The source-built base and fast packaging
+Fast mode tags `antivirus:latest` and `antivirus:<version>`, using
+`version=${VERSION:-3.00}` in `docker/build-image.sh`. Source mode defaults to
+`antivirus:optimized`. The source-built base and fast packaging
 retain separate provenance labels. See `docker/README.md` for build overrides,
-optional image export and the deployment command. The build script does not push
-images or delete existing ones. Config import removes active Unix-socket settings
+optional image export and the deployment command. Set `NOSAVE=1 NOPUSH=1` for
+build-only operation; otherwise the script exports an archive and uploads it to
+the configured S3 destination. Do not execute publication without task authorization.
+Config import removes active Unix-socket settings
 and preserves the supplied TCP settings. Keeping Unix-socket support in the
 binary costs little; disabling it at runtime is sufficient for this deployment.
 

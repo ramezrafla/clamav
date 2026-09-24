@@ -2,7 +2,7 @@
 set -Eeuo pipefail
 here=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 source_root=$(cd -- "$here/.." && pwd)
-image=${IMAGE:-antivirus:optimized}
+image=${IMAGE:-antivirus:latest}
 database=$(realpath -- "${1:-$source_root/db}")
 container="clamav-optimized-test-$$"
 inputs=$(mktemp -d "$here/.test-XXXXXXXX")

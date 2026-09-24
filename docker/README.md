@@ -19,7 +19,7 @@ UnRAR, bytecode interpretation, file parsers and normal signature coverage remai
 From the repository root:
 
 ```sh
-./docker/build-image.sh
+NOSAVE=1 NOPUSH=1 ./docker/build-image.sh
 ```
 
 `docker/config/clamd.conf` and `docker/config/freshclam.conf` are the authoritative
@@ -39,24 +39,27 @@ files out of Git and the upstream PR. Importing removes active `LocalSocket`,
 `LocalSocketGroup`, `LocalSocketMode`, and `FixStaleSocket` options; other settings
 remain as supplied. The configurations are included in the resulting local image.
 
-Default image: `antivirus:optimized`. Optional build controls:
+Fast mode creates `antivirus:latest` and `antivirus:3.00` by default. Both tags
+refer to the same image. The script's `version=${VERSION:-3.00}` selects the
+version; override `VERSION` or edit that default. `IMAGE` adds an optional extra
+tag in fast mode. For example, to build without exporting or uploading:
 
 ```sh
-IMAGE=antivirus:optimized-1 ./docker/build-image.sh
-SAVE_IMAGE="$PWD/docker/antivirus-optimized.tgz" ./docker/build-image.sh
+VERSION=3.01 NOSAVE=1 NOPUSH=1 ./docker/build-image.sh
 ```
 
 The reusable binary image is already present in this workspace's Docker daemon.
 To incorporate new scanner source changes, or bootstrap another machine:
 
 ```sh
-BUILD_MODE=source BUILD_JOBS=2 ./docker/build-image.sh
+BUILD_MODE=source BUILD_JOBS=2 NOSAVE=1 NOPUSH=1 ./docker/build-image.sh
 ```
 
 That mode compiles this working tree using `docker/Dockerfile`, tests it, updates
-`antivirus:optimized-binaries`, then performs the fast packaging step. Fast mode
+`antivirus:optimized-binaries`, then packages `antivirus:optimized` (or `IMAGE`).
+Run fast mode afterward to refresh `latest` and the versioned tag. Fast mode
 does **not** rebuild modified source. `BINARY_IMAGE` selects a different existing
-image built with the same recipe; it must differ from the output `IMAGE`.
+image built with the same recipe; it must differ from every output tag.
 
 `RUST_IMAGE` and `DEBIAN_IMAGE` can override the builder and runtime image
 references in source mode, including digest-pinned references. Keep both on the same Debian
@@ -64,9 +67,11 @@ release. Cargo dependencies are fetched from the checked-in lockfile, then the
 compile and test steps run with Cargo offline. BuildKit caches downloaded crates.
 The builder runs the native libclamav, Rust, clamscan and sigtool test suites.
 
-No existing images are deleted, no services are replaced, and nothing is uploaded
-to S3 or a registry by the build script. The previous antivirus build script's
-automatic publication steps are deliberately not part of a local source build.
+The script retains the deployment's export and S3 upload steps: unless `NOSAVE`
+is nonempty, it saves the newly built output tags to `antivirus.tgz` in the current
+directory. Unless `NOPUSH` is nonempty, it uploads that archive to the configured
+S3 destination. Set both to `1` for a build only. No services are replaced by the
+build script.
 
 ## Verify
 
@@ -112,7 +117,7 @@ docker run -d --name antivirus-optimized \
   -p 127.0.0.1:3310:3310 \
   --mount type=bind,source=/home/ramez/Work/oneoffice/antivirus/antivirus,target=/var/lib/clamav \
   --mount type=bind,source=/absolute/shared-files,target=/absolute/shared-files,readonly \
-  antivirus:optimized
+  antivirus:latest
 ```
 
 Replace `/absolute/shared-files` with the directory whose paths the client sends.
