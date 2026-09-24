@@ -99,6 +99,9 @@ tags
 install/*
 build/*
 
+# Private local signature database
+/db/
+
 # User-specific files
 *.rsuser
 *.suo
